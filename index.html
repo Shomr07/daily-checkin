@@ -15,30 +15,42 @@
       max-width:420px;
       margin:auto;
       background:#020617;
-      padding:20px;
+      padding:22px;
       border-radius:18px;
     }
+    h2 { margin-top:0 }
     button {
       width:100%;
       padding:16px;
-      margin:8px 0;
+      margin:10px 0;
       border-radius:14px;
       border:none;
       font-size:16px;
       cursor:pointer;
     }
-    .green { background:#16a34a; color:#052e16; }
-    .red { background:#ef4444; color:#450a0a; }
-    .disabled { opacity:.5; pointer-events:none; }
-    .msg { margin-top:6px; font-size:14px; opacity:.85; }
-    .hidden { display:none; }
+    .primary { background:#2563eb; color:white }
+    .green { background:#16a34a; color:#052e16 }
+    .red { background:#ef4444; color:#450a0a }
+    .disabled { opacity:.5; pointer-events:none }
+    .msg { margin-top:6px; font-size:14px; opacity:.85 }
+    .hidden { display:none }
+    .subtle { opacity:.75; font-size:14px }
   </style>
 </head>
 
 <body>
 
-<!-- CHECK-IN PAGE -->
-<div class="box" id="checkin">
+<!-- HOME -->
+<div class="box" id="home">
+  <h2>Welcome back, Shom</h2>
+  <div class="subtle" id="date"></div>
+
+  <button class="primary" onclick="goCheckin()">Mark Today</button>
+  <button onclick="goProgress()">Check Progress</button>
+</div>
+
+<!-- CHECK-IN -->
+<div class="box hidden" id="checkin">
   <h2>Daily Check-In</h2>
 
   <p><b>Shmiras HaBris</b></p>
@@ -52,20 +64,45 @@
   <div id="ein-msg" class="msg"></div>
 </div>
 
-<!-- PROGRESS PAGE -->
+<!-- PROGRESS -->
 <div class="box hidden" id="progress">
   <h2>Your Progress</h2>
   <p id="points"></p>
   <p id="streak"></p>
-  <p style="opacity:.8">Keep going. Consistency builds strength.</p>
+  <p class="subtle">Consistency builds strength.</p>
+
+  <button onclick="goHome()">Back Home</button>
 </div>
 
 <script>
+  // DATE (English + Hebrew)
+  const d = new Date();
+  document.getElementById('date').innerText =
+    d.toLocaleDateString('en', { weekday:'long', year:'numeric', month:'long', day:'numeric' }) +
+    ' · ' +
+    d.toLocaleDateString('he');
+
+  // STATE
   let answers = { bris:null, ein:null };
   let points = Number(localStorage.getItem('points') || 0);
   let streak = Number(localStorage.getItem('streak') || 0);
 
-  function answer(which, success) {
+  function show(id){
+    ['home','checkin','progress'].forEach(s =>
+      document.getElementById(s).classList.add('hidden')
+    );
+    document.getElementById(id).classList.remove('hidden');
+  }
+
+  function goHome(){ show('home') }
+  function goCheckin(){ show('checkin') }
+  function goProgress(){
+    document.getElementById('points').innerText = 'Points: ' + points;
+    document.getElementById('streak').innerText = 'Streak: ' + streak + ' days';
+    show('progress');
+  }
+
+  function answer(which, success){
     if (answers[which] !== null) return;
     answers[which] = success;
 
@@ -81,10 +118,10 @@
     if (answers.bris !== null && answers.ein !== null) finishDay();
   }
 
-  function finishDay() {
+  function finishDay(){
     if (answers.bris) points += 10;
     if (answers.ein) points += 10;
-    points += 5; // consistency
+    points += 5;
 
     if (answers.bris || answers.ein) streak++;
     else streak = 0;
@@ -92,11 +129,7 @@
     localStorage.setItem('points', points);
     localStorage.setItem('streak', streak);
 
-    document.getElementById('points').innerText = 'Points: ' + points;
-    document.getElementById('streak').innerText = 'Streak: ' + streak + ' days';
-
-    document.getElementById('checkin').classList.add('hidden');
-    document.getElementById('progress').classList.remove('hidden');
+    goProgress();
   }
 </script>
 
