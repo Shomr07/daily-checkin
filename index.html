@@ -104,15 +104,12 @@
 </div>
   
 <script>
-<script>
   // Ask for notification permission once
-  if ('Notification' in window && Notification.permission === 'default') {
-    setTimeout(() => {
-      Notification.requestPermission();
-    }, 1000);
-  }
-</script>
-
+if ('Notification' in window && Notification.permission === 'default') {
+  setTimeout(() => {
+    Notification.requestPermission();
+  }, 1000);
+}
   /* ===== DATE ===== */
 const today = new Date();
 document.getElementById('date').innerText =
