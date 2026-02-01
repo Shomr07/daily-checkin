@@ -102,9 +102,18 @@
 
   <button onclick="goHome()" style="margin-top:16px">Back Home</button>
 </div>
-
+  
 <script>
-/* ===== DATE ===== */
+<script>
+  // Ask for notification permission once
+  if ('Notification' in window && Notification.permission === 'default') {
+    setTimeout(() => {
+      Notification.requestPermission();
+    }, 1000);
+  }
+</script>
+
+  /* ===== DATE ===== */
 const today = new Date();
 document.getElementById('date').innerText =
   today.toLocaleDateString('en',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) +
