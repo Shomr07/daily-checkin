@@ -45,7 +45,6 @@
 
 <body>
   
-</script>
 <!-- HOME -->
 <div class="box" id="home">
   <h2>Welcome back, Shom</h2>
@@ -104,25 +103,56 @@
   <button onclick="goHome()" style="margin-top:16px">Back Home</button>
 </div>
   
-<script>
-  // Ask for notification permission once
-if ('Notification' in window && Notification.permission === 'default') {
-  setTimeout(() => {
-    Notification.requestPermission();
-  }, 1000);
+ <script>
+/* ================= NOTIFICATIONS ================= */
+
+// inject notification button on Home if needed
+document.addEventListener('DOMContentLoaded', () => {
+  if ('Notification' in window && Notification.permission !== 'granted') {
+    const home = document.getElementById('home');
+    if (home && !document.getElementById('notifyBtn')) {
+      const btn = document.createElement('button');
+      btn.id = 'notifyBtn';
+      btn.innerText = 'Enable Daily Notifications';
+      btn.onclick = enableNotifications;
+      home.insertBefore(btn, home.children[2]);
+    }
+  }
+});
+
+function enableNotifications() {
+  if (!('Notification' in window)) {
+    alert('Notifications not supported.');
+    return;
+  }
+  Notification.requestPermission().then(p => {
+    if (p === 'granted') {
+      localStorage.setItem('notificationsEnabled', 'yes');
+      const btn = document.getElementById('notifyBtn');
+      if (btn) btn.remove();
+      alert('Notifications enabled ✅');
+    } else {
+      alert('Notifications not enabled.');
+    }
+  });
 }
-  /* ===== DATE ===== */
+
+/* ================= DATE ================= */
+
 const today = new Date();
+const todayKey = today.toISOString().slice(0,10);
+
 document.getElementById('date').innerText =
   today.toLocaleDateString('en',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) +
   ' · ' +
   today.toLocaleDateString('he');
 
-/* ===== HELPERS ===== */
-const DAY_MS = 86400000;
-const todayKey = today.toISOString().slice(0,10);
+/* ================= HELPERS ================= */
 
-/* ===== STATE ===== */
+const DAY_MS = 86400000;
+
+/* ================= STATE ================= */
+
 const state = JSON.parse(localStorage.getItem('state') || '{}');
 state.days ||= {};
 state.points ||= 0;
@@ -133,7 +163,8 @@ state.lastLogged ||= null;
 let activeDate = todayKey;
 let answers = state.days[activeDate] || { bris:null, ein:null };
 
-/* ===== NAV ===== */
+/* ================= NAV ================= */
+
 function show(id){
   ['home','checkin','progress'].forEach(s =>
     document.getElementById(s).classList.add('hidden')
@@ -141,14 +172,18 @@ function show(id){
   document.getElementById(id).classList.remove('hidden');
 }
 function goHome(){ show('home'); }
+
 function goCheckin(dateKey = todayKey){
   activeDate = dateKey;
   answers = state.days[activeDate] || { bris:null, ein:null };
   document.getElementById('bris-msg').innerText = '';
   document.getElementById('ein-msg').innerText = '';
-  document.querySelectorAll('#checkin button').forEach(b=>b.classList.remove('disabled'));
+  document.querySelectorAll('#checkin button').forEach(b =>
+    b.classList.remove('disabled')
+  );
   show('checkin');
 }
+
 function goProgress(){
   document.getElementById('points').innerText = state.points;
   document.getElementById('streakBig').innerText = state.streak;
@@ -159,7 +194,8 @@ function goProgress(){
   show('progress');
 }
 
-/* ===== CHECK-IN ===== */
+/* ================= CHECK-IN ================= */
+
 function answer(which, success){
   if (answers[which] !== null) return;
   answers[which] = success;
@@ -172,15 +208,18 @@ function answer(which, success){
   ).forEach(b=>b.classList.add('disabled'));
   if (answers.bris!==null && answers.ein!==null) finishDay();
 }
+
 function finishDay(){
   if (!state.days[activeDate]) {
     if (answers.bris) state.points+=10;
     if (answers.ein) state.points+=10;
     state.points+=5;
+
     if (state.lastLogged) {
       const diff=(new Date(activeDate)-new Date(state.lastLogged))/DAY_MS;
       state.streak = diff===1 ? state.streak+1 : 1;
     } else state.streak=1;
+
     state.bestStreak = Math.max(state.bestStreak,state.streak);
     state.lastLogged=activeDate;
   }
@@ -188,7 +227,8 @@ function finishDay(){
   goProgress();
 }
 
-/* ===== GRAPH ===== */
+/* ================= GRAPH ================= */
+
 function renderGraph(){
   let html='';
   for(let i=6;i>=0;i--){
@@ -204,7 +244,8 @@ function renderGraph(){
   document.getElementById('graph').innerHTML=html;
 }
 
-/* ===== CALENDAR ===== */
+/* ================= CALENDAR ================= */
+
 function renderCalendar(){
   let html='';
   for(let i=13;i>=0;i--){
@@ -212,11 +253,14 @@ function renderCalendar(){
     const key=d.toISOString().slice(0,10);
     const logged=state.days[key];
     const diff=(today-d)/DAY_MS;
+
     let color='#020617';
     if(logged){
-      color=logged.bris&&logged.ein?'#22c55e':logged.bris||logged.ein?'#4ade80':'#ef4444';
+      color=logged.bris&&logged.ein?'#22c55e':
+            logged.bris||logged.ein?'#4ade80':'#ef4444';
     }
     const editable=!logged&&diff>=1&&diff<=3;
+
     html+=`<div onclick="${editable?`goCheckin('${key}')`:''}"
       style="background:${color};height:36px;border-radius:8px;
       opacity:${editable||logged?1:0.4};
