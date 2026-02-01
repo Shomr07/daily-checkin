@@ -70,80 +70,145 @@
   <p id="points"></p>
   <p id="streak"></p>
   <p class="subtle">Consistency builds strength.</p>
-
+  <div id="calendar"></div>
   <button onclick="goHome()">Back Home</button>
 </div>
 
 <script>
-  const todayKey = () => new Date().toISOString().slice(0,10);
+/* ========= HELPERS ========= */
+const DAY_MS = 86400000;
+const today = new Date();
+const todayKey = today.toISOString().slice(0,10);
 
-  const state = JSON.parse(localStorage.getItem('state') || '{}');
-  const today = todayKey();
+function dateKeyToDate(key){
+  return new Date(key + 'T00:00:00');
+}
 
-  state.days ||= {};
-  state.points ||= 0;
-  state.streak ||= 0;
-  state.lastLogged ||= null;
+/* ========= STATE ========= */
+const state = JSON.parse(localStorage.getItem('state') || '{}');
+state.days ||= {};           // { 'YYYY-MM-DD': { bris:true/false, ein:true/false } }
+state.points ||= 0;
+state.streak ||= 0;
+state.lastLogged ||= null;
 
-  let answers = state.days[today] || { bris:null, ein:null };
+let activeDateKey = todayKey;
+let answers = state.days[activeDateKey] || { bris:null, ein:null };
 
-  function show(id){
-    ['home','checkin','progress'].forEach(s =>
-      document.getElementById(s).classList.add('hidden')
-    );
-    document.getElementById(id).classList.remove('hidden');
+/* ========= NAV ========= */
+function show(screen){
+  ['home','checkin','progress'].forEach(id =>
+    document.getElementById(id).classList.add('hidden')
+  );
+  document.getElementById(screen).classList.remove('hidden');
+}
+
+function goHome(){ show('home'); }
+
+function goCheckin(dateKey = todayKey){
+  activeDateKey = dateKey;
+  answers = state.days[activeDateKey] || { bris:null, ein:null };
+
+  document.getElementById('bris-msg').innerText = '';
+  document.getElementById('ein-msg').innerText = '';
+  document.querySelectorAll('#checkin button').forEach(b =>
+    b.classList.remove('disabled')
+  );
+
+  show('checkin');
+}
+
+function goProgress(){
+  document.getElementById('points').innerText =
+    'Points: ' + state.points;
+  document.getElementById('streak').innerText =
+    'Streak: ' + state.streak + ' days';
+
+  renderCalendar();
+  show('progress');
+}
+
+/* ========= CHECK-IN ========= */
+function answer(which, success){
+  if (answers[which] !== null) return;
+
+  answers[which] = success;
+
+  document.getElementById(which + '-msg').innerText =
+    success
+      ? 'Well done. One day at a time.'
+      : 'Tomorrow is another day.';
+
+  document.querySelectorAll(
+    which === 'bris'
+      ? 'button[onclick^="answer(\'bris"]'
+      : 'button[onclick^="answer(\'ein"]'
+  ).forEach(b => b.classList.add('disabled'));
+
+  if (answers.bris !== null && answers.ein !== null) {
+    finishDay();
   }
+}
 
-  function goHome(){ show('home') }
-  function goCheckin(){ show('checkin') }
-  function goProgress(){
-    document.getElementById('points').innerText = 'Points: ' + state.points;
-    document.getElementById('streak').innerText = 'Streak: ' + state.streak + ' days';
-    show('progress');
-  }
+function finishDay(){
+  const isNewDay = !state.days[activeDateKey];
 
-  function answer(which, success){
-    if (answers[which] !== null) return;
-    answers[which] = success;
+  if (isNewDay) {
+    if (answers.bris) state.points += 10;
+    if (answers.ein)  state.points += 10;
+    state.points += 5; // consistency
 
-    document.getElementById(which + '-msg').innerText =
-      success ? 'Well done. One day at a time.' : 'Tomorrow is another day.';
-
-    document.querySelectorAll(
-      which === 'bris'
-        ? 'button[onclick^="answer(\'bris"]'
-        : 'button[onclick^="answer(\'ein"]'
-    ).forEach(b => b.classList.add('disabled'));
-
-    if (answers.bris !== null && answers.ein !== null) finishDay();
-  }
-
-  function finishDay(){
-    if (!state.days[today]) {
-      if (answers.bris) state.points += 10;
-      if (answers.ein) state.points += 10;
-      state.points += 5;
-
-      if (state.lastLogged) {
-        const diff =
-          (new Date(today) - new Date(state.lastLogged)) / 86400000;
-        state.streak = diff === 1 ? state.streak + 1 : 1;
-      } else {
-        state.streak = 1;
-      }
-
-      state.lastLogged = today;
+    if (state.lastLogged) {
+      const diff =
+        (dateKeyToDate(activeDateKey) -
+         dateKeyToDate(state.lastLogged)) / DAY_MS;
+      state.streak = diff === 1 ? state.streak + 1 : 1;
+    } else {
+      state.streak = 1;
     }
 
-    state.days[today] = answers;
-    localStorage.setItem('state', JSON.stringify(state));
-    goProgress();
+    state.lastLogged = activeDateKey;
   }
 
-  // restore if already logged today
-  if (state.days[today]) {
-    answers = state.days[today];
+  state.days[activeDateKey] = answers;
+  localStorage.setItem('state', JSON.stringify(state));
+  goProgress();
+}
+
+/* ========= CALENDAR ========= */
+function renderCalendar(){
+  let html = '';
+
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today - i * DAY_MS);
+    const key = d.toISOString().slice(0,10);
+    const logged = state.days[key];
+
+    const diff = (today - d) / DAY_MS;
+
+    let symbol = '⬜';
+    if (logged) {
+      symbol =
+        logged.bris && logged.ein ? '🟢🟢' :
+        logged.bris || logged.ein ? '🟢🔴' :
+        '🔴🔴';
+    }
+
+    const editable =
+      !logged && diff >= 1 && diff <= 3;
+
+    html += `
+      <div style="margin:6px 0;
+                  cursor:${editable?'pointer':'default'};
+                  opacity:${editable||logged?1:0.6}"
+           ${editable ? `onclick="goCheckin('${key}')"` : ''}>
+        ${d.toLocaleDateString('en',{weekday:'short',month:'short',day:'numeric'})}
+        ${symbol}
+      </div>
+    `;
   }
+
+  document.getElementById('calendar').innerHTML = html;
+}
 </script>
 
 </body>
