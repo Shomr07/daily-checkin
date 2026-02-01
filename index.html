@@ -29,12 +29,17 @@
       cursor:pointer;
     }
     .primary { background:#2563eb; color:white }
-    .green { background:#16a34a; color:#052e16 }
+    .green { background:#22c55e; color:#052e16 }
     .red { background:#ef4444; color:#450a0a }
     .disabled { opacity:.5; pointer-events:none }
-    .msg { margin-top:6px; font-size:14px; opacity:.85 }
     .hidden { display:none }
     .subtle { opacity:.75; font-size:14px }
+    .card {
+      background:#020617;
+      padding:12px;
+      border-radius:12px;
+      text-align:center;
+    }
   </style>
 </head>
 
@@ -51,163 +56,166 @@
 
 <!-- CHECK-IN -->
 <div class="box hidden" id="checkin">
+  <button onclick="goHome()">← Back Home</button>
   <h2>Daily Check-In</h2>
 
   <p><b>Shmiras HaBris</b></p>
   <button class="green" onclick="answer('bris',true)">I overcame my urge</button>
   <button class="red" onclick="answer('bris',false)">I fell today</button>
-  <div id="bris-msg" class="msg"></div>
+  <div id="bris-msg" class="subtle"></div>
 
   <p style="margin-top:16px"><b>Shmiras Einayim</b></p>
   <button class="green" onclick="answer('ein',true)">I overcame my urge</button>
   <button class="red" onclick="answer('ein',false)">I fell today</button>
-  <div id="ein-msg" class="msg"></div>
+  <div id="ein-msg" class="subtle"></div>
 </div>
 
 <!-- PROGRESS -->
 <div class="box hidden" id="progress">
-  <h2>Your Progress</h2>
-  <p id="points"></p>
-  <p id="streak"></p>
-  <p class="subtle">Consistency builds strength.</p>
-  <div id="calendar"></div>
-  <button onclick="goHome()">Back Home</button>
+  <div style="text-align:center;margin-bottom:20px">
+    <div style="font-size:48px">🔥 <span id="streakBig">0</span></div>
+    <div class="subtle">Day Streak</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+    <div class="card">
+      <div style="font-size:20px" id="points">0</div>
+      <div class="subtle">Total Points</div>
+    </div>
+    <div class="card">
+      <div style="font-size:20px" id="bestStreak">0</div>
+      <div class="subtle">Best Streak</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="subtle">Last 7 days</div>
+    <div id="graph" style="display:flex;gap:6px;align-items:flex-end;height:80px;margin:10px 0"></div>
+  </div>
+
+  <div>
+    <div class="subtle">Last 14 days</div>
+    <div id="calendar"
+      style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px">
+    </div>
+  </div>
+
+  <button onclick="goHome()" style="margin-top:16px">Back Home</button>
 </div>
 
 <script>
-/* ========= HELPERS ========= */
-const DAY_MS = 86400000;
+/* ===== DATE ===== */
 const today = new Date();
+document.getElementById('date').innerText =
+  today.toLocaleDateString('en',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) +
+  ' · ' +
+  today.toLocaleDateString('he');
+
+/* ===== HELPERS ===== */
+const DAY_MS = 86400000;
 const todayKey = today.toISOString().slice(0,10);
 
-function dateKeyToDate(key){
-  return new Date(key + 'T00:00:00');
-}
-
-/* ========= STATE ========= */
+/* ===== STATE ===== */
 const state = JSON.parse(localStorage.getItem('state') || '{}');
-state.days ||= {};           // { 'YYYY-MM-DD': { bris:true/false, ein:true/false } }
+state.days ||= {};
 state.points ||= 0;
 state.streak ||= 0;
+state.bestStreak ||= 0;
 state.lastLogged ||= null;
 
-let activeDateKey = todayKey;
-let answers = state.days[activeDateKey] || { bris:null, ein:null };
+let activeDate = todayKey;
+let answers = state.days[activeDate] || { bris:null, ein:null };
 
-/* ========= NAV ========= */
-function show(screen){
-  ['home','checkin','progress'].forEach(id =>
-    document.getElementById(id).classList.add('hidden')
+/* ===== NAV ===== */
+function show(id){
+  ['home','checkin','progress'].forEach(s =>
+    document.getElementById(s).classList.add('hidden')
   );
-  document.getElementById(screen).classList.remove('hidden');
+  document.getElementById(id).classList.remove('hidden');
 }
-
 function goHome(){ show('home'); }
-
 function goCheckin(dateKey = todayKey){
-  activeDateKey = dateKey;
-  answers = state.days[activeDateKey] || { bris:null, ein:null };
-
+  activeDate = dateKey;
+  answers = state.days[activeDate] || { bris:null, ein:null };
   document.getElementById('bris-msg').innerText = '';
   document.getElementById('ein-msg').innerText = '';
-  document.querySelectorAll('#checkin button').forEach(b =>
-    b.classList.remove('disabled')
-  );
-
+  document.querySelectorAll('#checkin button').forEach(b=>b.classList.remove('disabled'));
   show('checkin');
 }
-
 function goProgress(){
-  document.getElementById('points').innerText =
-    'Points: ' + state.points;
-  document.getElementById('streak').innerText =
-    'Streak: ' + state.streak + ' days';
-
+  document.getElementById('points').innerText = state.points;
+  document.getElementById('streakBig').innerText = state.streak;
+  document.getElementById('bestStreak').innerText = state.bestStreak;
+  renderGraph();
   renderCalendar();
+  localStorage.setItem('state', JSON.stringify(state));
   show('progress');
 }
 
-/* ========= CHECK-IN ========= */
+/* ===== CHECK-IN ===== */
 function answer(which, success){
   if (answers[which] !== null) return;
-
   answers[which] = success;
-
-  document.getElementById(which + '-msg').innerText =
-    success
-      ? 'Well done. One day at a time.'
-      : 'Tomorrow is another day.';
-
+  document.getElementById(which+'-msg').innerText =
+    success ? 'Well done. One day at a time.' : 'Tomorrow is another day.';
   document.querySelectorAll(
-    which === 'bris'
+    which==='bris'
       ? 'button[onclick^="answer(\'bris"]'
       : 'button[onclick^="answer(\'ein"]'
-  ).forEach(b => b.classList.add('disabled'));
-
-  if (answers.bris !== null && answers.ein !== null) {
-    finishDay();
-  }
+  ).forEach(b=>b.classList.add('disabled'));
+  if (answers.bris!==null && answers.ein!==null) finishDay();
 }
-
 function finishDay(){
-  const isNewDay = !state.days[activeDateKey];
-
-  if (isNewDay) {
-    if (answers.bris) state.points += 10;
-    if (answers.ein)  state.points += 10;
-    state.points += 5; // consistency
-
+  if (!state.days[activeDate]) {
+    if (answers.bris) state.points+=10;
+    if (answers.ein) state.points+=10;
+    state.points+=5;
     if (state.lastLogged) {
-      const diff =
-        (dateKeyToDate(activeDateKey) -
-         dateKeyToDate(state.lastLogged)) / DAY_MS;
-      state.streak = diff === 1 ? state.streak + 1 : 1;
-    } else {
-      state.streak = 1;
-    }
-
-    state.lastLogged = activeDateKey;
+      const diff=(new Date(activeDate)-new Date(state.lastLogged))/DAY_MS;
+      state.streak = diff===1 ? state.streak+1 : 1;
+    } else state.streak=1;
+    state.bestStreak = Math.max(state.bestStreak,state.streak);
+    state.lastLogged=activeDate;
   }
-
-  state.days[activeDateKey] = answers;
-  localStorage.setItem('state', JSON.stringify(state));
+  state.days[activeDate]=answers;
   goProgress();
 }
 
-/* ========= CALENDAR ========= */
-function renderCalendar(){
-  let html = '';
-
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(today - i * DAY_MS);
-    const key = d.toISOString().slice(0,10);
-    const logged = state.days[key];
-
-    const diff = (today - d) / DAY_MS;
-
-    let symbol = '⬜';
-    if (logged) {
-      symbol =
-        logged.bris && logged.ein ? '🟢🟢' :
-        logged.bris || logged.ein ? '🟢🔴' :
-        '🔴🔴';
-    }
-
-    const editable =
-      !logged && diff >= 1 && diff <= 3;
-
-    html += `
-      <div style="margin:6px 0;
-                  cursor:${editable?'pointer':'default'};
-                  opacity:${editable||logged?1:0.6}"
-           ${editable ? `onclick="goCheckin('${key}')"` : ''}>
-        ${d.toLocaleDateString('en',{weekday:'short',month:'short',day:'numeric'})}
-        ${symbol}
-      </div>
-    `;
+/* ===== GRAPH ===== */
+function renderGraph(){
+  let html='';
+  for(let i=6;i>=0;i--){
+    const d=new Date(today - i*DAY_MS);
+    const key=d.toISOString().slice(0,10);
+    const day=state.days[key];
+    let pts=0;
+    if(day){ if(day.bris)pts+=10; if(day.ein)pts+=10; pts+=5; }
+    html+=`<div style="width:12px;height:${pts*3}px;
+      background:${pts>=20?'#22c55e':pts>0?'#4ade80':'#334155'};
+      border-radius:4px"></div>`;
   }
+  document.getElementById('graph').innerHTML=html;
+}
 
-  document.getElementById('calendar').innerHTML = html;
+/* ===== CALENDAR ===== */
+function renderCalendar(){
+  let html='';
+  for(let i=13;i>=0;i--){
+    const d=new Date(today - i*DAY_MS);
+    const key=d.toISOString().slice(0,10);
+    const logged=state.days[key];
+    const diff=(today-d)/DAY_MS;
+    let color='#020617';
+    if(logged){
+      color=logged.bris&&logged.ein?'#22c55e':logged.bris||logged.ein?'#4ade80':'#ef4444';
+    }
+    const editable=!logged&&diff>=1&&diff<=3;
+    html+=`<div onclick="${editable?`goCheckin('${key}')`:''}"
+      style="background:${color};height:36px;border-radius:8px;
+      opacity:${editable||logged?1:0.4};
+      cursor:${editable?'pointer':'default'}"></div>`;
+  }
+  document.getElementById('calendar').innerHTML=html;
 }
 </script>
 
