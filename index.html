@@ -75,17 +75,17 @@
 </div>
 
 <script>
-  // DATE (English + Hebrew)
-  const d = new Date();
-  document.getElementById('date').innerText =
-    d.toLocaleDateString('en', { weekday:'long', year:'numeric', month:'long', day:'numeric' }) +
-    ' · ' +
-    d.toLocaleDateString('he');
+  const todayKey = () => new Date().toISOString().slice(0,10);
 
-  // STATE
-  let answers = { bris:null, ein:null };
-  let points = Number(localStorage.getItem('points') || 0);
-  let streak = Number(localStorage.getItem('streak') || 0);
+  const state = JSON.parse(localStorage.getItem('state') || '{}');
+  const today = todayKey();
+
+  state.days ||= {};
+  state.points ||= 0;
+  state.streak ||= 0;
+  state.lastLogged ||= null;
+
+  let answers = state.days[today] || { bris:null, ein:null };
 
   function show(id){
     ['home','checkin','progress'].forEach(s =>
@@ -97,8 +97,8 @@
   function goHome(){ show('home') }
   function goCheckin(){ show('checkin') }
   function goProgress(){
-    document.getElementById('points').innerText = 'Points: ' + points;
-    document.getElementById('streak').innerText = 'Streak: ' + streak + ' days';
+    document.getElementById('points').innerText = 'Points: ' + state.points;
+    document.getElementById('streak').innerText = 'Streak: ' + state.streak + ' days';
     show('progress');
   }
 
@@ -119,17 +119,30 @@
   }
 
   function finishDay(){
-    if (answers.bris) points += 10;
-    if (answers.ein) points += 10;
-    points += 5;
+    if (!state.days[today]) {
+      if (answers.bris) state.points += 10;
+      if (answers.ein) state.points += 10;
+      state.points += 5;
 
-    if (answers.bris || answers.ein) streak++;
-    else streak = 0;
+      if (state.lastLogged) {
+        const diff =
+          (new Date(today) - new Date(state.lastLogged)) / 86400000;
+        state.streak = diff === 1 ? state.streak + 1 : 1;
+      } else {
+        state.streak = 1;
+      }
 
-    localStorage.setItem('points', points);
-    localStorage.setItem('streak', streak);
+      state.lastLogged = today;
+    }
 
+    state.days[today] = answers;
+    localStorage.setItem('state', JSON.stringify(state));
     goProgress();
+  }
+
+  // restore if already logged today
+  if (state.days[today]) {
+    answers = state.days[today];
   }
 </script>
 
