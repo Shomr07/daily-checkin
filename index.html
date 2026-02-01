@@ -31,40 +31,74 @@
     .red { background:#ef4444; color:#450a0a; }
     .disabled { opacity:.5; pointer-events:none; }
     .msg { margin-top:6px; font-size:14px; opacity:.85; }
+    .hidden { display:none; }
   </style>
 </head>
 
 <body>
-  <div class="box">
-    <h2>Daily Check-In</h2>
 
-    <p><b>Shmiras HaBris</b></p>
-    <button class="green" onclick="answer('bris','green')">I overcame my urge</button>
-    <button class="red" onclick="answer('bris','red')">I fell today</button>
-    <div id="bris-msg" class="msg"></div>
+<!-- CHECK-IN PAGE -->
+<div class="box" id="checkin">
+  <h2>Daily Check-In</h2>
 
-    <p style="margin-top:16px"><b>Shmiras Einayim</b></p>
-    <button class="green" onclick="answer('ein','green')">I overcame my urge</button>
-    <button class="red" onclick="answer('ein','red')">I fell today</button>
-    <div id="ein-msg" class="msg"></div>
-  </div>
+  <p><b>Shmiras HaBris</b></p>
+  <button class="green" onclick="answer('bris',true)">I overcame my urge</button>
+  <button class="red" onclick="answer('bris',false)">I fell today</button>
+  <div id="bris-msg" class="msg"></div>
+
+  <p style="margin-top:16px"><b>Shmiras Einayim</b></p>
+  <button class="green" onclick="answer('ein',true)">I overcame my urge</button>
+  <button class="red" onclick="answer('ein',false)">I fell today</button>
+  <div id="ein-msg" class="msg"></div>
+</div>
+
+<!-- PROGRESS PAGE -->
+<div class="box hidden" id="progress">
+  <h2>Your Progress</h2>
+  <p id="points"></p>
+  <p id="streak"></p>
+  <p style="opacity:.8">Keep going. Consistency builds strength.</p>
+</div>
 
 <script>
-  function answer(which, type) {
-    const buttons = document.querySelectorAll(
+  let answers = { bris:null, ein:null };
+  let points = Number(localStorage.getItem('points') || 0);
+  let streak = Number(localStorage.getItem('streak') || 0);
+
+  function answer(which, success) {
+    if (answers[which] !== null) return;
+    answers[which] = success;
+
+    document.getElementById(which + '-msg').innerText =
+      success ? 'Well done. One day at a time.' : 'Tomorrow is another day.';
+
+    document.querySelectorAll(
       which === 'bris'
         ? 'button[onclick^="answer(\'bris"]'
         : 'button[onclick^="answer(\'ein"]'
-    );
+    ).forEach(b => b.classList.add('disabled'));
 
-    buttons.forEach(b => b.classList.add('disabled'));
+    if (answers.bris !== null && answers.ein !== null) finishDay();
+  }
 
-    document.getElementById(which + '-msg').innerText =
-      type === 'green'
-        ? 'Well done. One day at a time.'
-        : 'Tomorrow is another day.';
+  function finishDay() {
+    if (answers.bris) points += 10;
+    if (answers.ein) points += 10;
+    points += 5; // consistency
+
+    if (answers.bris || answers.ein) streak++;
+    else streak = 0;
+
+    localStorage.setItem('points', points);
+    localStorage.setItem('streak', streak);
+
+    document.getElementById('points').innerText = 'Points: ' + points;
+    document.getElementById('streak').innerText = 'Streak: ' + streak + ' days';
+
+    document.getElementById('checkin').classList.add('hidden');
+    document.getElementById('progress').classList.remove('hidden');
   }
 </script>
+
 </body>
 </html>
-
