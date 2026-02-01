@@ -5,26 +5,66 @@
   <title>Daily Check-In</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: -apple-system, system-ui; background:#0f172a; color:#e5e7eb; padding:20px }
-    .box { max-width:400px; margin:auto; background:#020617; padding:20px; border-radius:16px }
-    button { width:100%; padding:14px; margin:8px 0; border-radius:12px; border:none; font-size:16px }
-    .green { background:#16a34a; color:#052e16 }
-    .red { background:#ef4444; color:#450a0a }
+    body {
+      font-family: -apple-system, system-ui;
+      background:#0f172a;
+      color:#e5e7eb;
+      padding:20px;
+    }
+    .box {
+      max-width:420px;
+      margin:auto;
+      background:#020617;
+      padding:20px;
+      border-radius:18px;
+    }
+    button {
+      width:100%;
+      padding:16px;
+      margin:8px 0;
+      border-radius:14px;
+      border:none;
+      font-size:16px;
+      cursor:pointer;
+    }
+    .green { background:#16a34a; color:#052e16; }
+    .red { background:#ef4444; color:#450a0a; }
+    .disabled { opacity:.5; pointer-events:none; }
+    .msg { margin-top:6px; font-size:14px; opacity:.85; }
   </style>
 </head>
+
 <body>
   <div class="box">
     <h2>Daily Check-In</h2>
 
     <p><b>Shmiras HaBris</b></p>
-    <button class="green">I overcame my urge</button>
-    <button class="red">I fell today</button>
+    <button class="green" onclick="answer('bris','green')">I overcame my urge</button>
+    <button class="red" onclick="answer('bris','red')">I fell today</button>
+    <div id="bris-msg" class="msg"></div>
 
-    <p><b>Shmiras Einayim</b></p>
-    <button class="green">I overcame my urge</button>
-    <button class="red">I fell today</button>
-
-    <p style="opacity:.7;margin-top:10px">Tomorrow is another day.</p>
+    <p style="margin-top:16px"><b>Shmiras Einayim</b></p>
+    <button class="green" onclick="answer('ein','green')">I overcame my urge</button>
+    <button class="red" onclick="answer('ein','red')">I fell today</button>
+    <div id="ein-msg" class="msg"></div>
   </div>
+
+<script>
+  function answer(which, type) {
+    const buttons = document.querySelectorAll(
+      which === 'bris'
+        ? 'button[onclick^="answer(\'bris"]'
+        : 'button[onclick^="answer(\'ein"]'
+    );
+
+    buttons.forEach(b => b.classList.add('disabled'));
+
+    document.getElementById(which + '-msg').innerText =
+      type === 'green'
+        ? 'Well done. One day at a time.'
+        : 'Tomorrow is another day.';
+  }
+</script>
 </body>
 </html>
+
